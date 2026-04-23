@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>單位換算器</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#667eea">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f0f23;color:#e0e0e0;min-height:100vh;min-height:100dvh}
+.header{background:linear-gradient(135deg,#667eea,#764ba2);padding:16px 20px;text-align:center;position:sticky;top:0;z-index:10}
+.header h1{font-size:20px;font-weight:600;color:#fff}
+.header .rate-info{font-size:11px;color:rgba(255,255,255,.7);margin-top:4px}
+
+.tabs{display:flex;background:#1a1a2e;border-bottom:1px solid #333}
+.tab{flex:1;padding:12px 0;text-align:center;font-size:14px;color:#888;cursor:pointer;border-bottom:2px solid transparent;transition:.2s}
+.tab.active{color:#667eea;border-bottom-color:#667eea;background:#1e1e36}
+
+.panel{display:none;padding:20px;max-width:520px;margin:0 auto}
+.panel.active{display:block}
+
+.converter{background:#1a1a2e;border-radius:12px;padding:20px;margin-bottom:16px}
+.converter label{display:block;font-size:13px;color:#aaa;margin-bottom:6px}
+.input-row{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+.input-row input{flex:1;background:#0f0f23;border:1px solid #333;border-radius:8px;padding:12px;font-size:18px;color:#fff;outline:none;text-align:right}
+.input-row input:focus{border-color:#667eea}
+.input-row select{background:#0f0f23;border:1px solid #333;border-radius:8px;padding:12px;font-size:14px;color:#fff;outline:none;min-width:90px}
+.input-row select:focus{border-color:#667eea}
+
+.swap-btn{display:block;margin:0 auto 14px;background:none;border:1px solid #444;border-radius:50%;width:40px;height:40px;color:#667eea;font-size:20px;cursor:pointer;transition:.2s}
+.swap-btn:hover{background:#667eea;color:#fff}
+.swap-btn:active{transform:scale(.9)}
+
+.result-display{background:#0f0f23;border-radius:8px;padding:14px;text-align:center;font-size:22px;font-weight:600;color:#667eea;word-break:break-all;min-height:52px;line-height:1.4}
+.result-display .unit-label{font-size:13px;color:#888;font-weight:400}
+
+.formula{text-align:center;font-size:12px;color:#666;margin-top:10px}
+
+/* 匯率面板額外樣式 */
+.currency-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.currency-card{background:#0f0f23;border:1px solid #333;border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:.2s}
+.currency-card:hover{border-color:#667eea}
+.currency-card.active{border-color:#667eea;background:#1e1e36}
+.currency-card .flag{font-size:24px}
+.currency-card .code{font-size:12px;color:#aaa;margin-top:2px}
+.currency-card .rate{font-size:14px;font-weight:600;color:#e0e0e0;margin-top:2px}
+
+.refresh-btn{display:flex;align-items:center;justify-content:center;gap:6px;margin:16px auto 0;background:linear-gradient(135deg,#667eea,#764ba2);border:none;border-radius:8px;padding:10px 20px;color:#fff;font-size:14px;cursor:pointer}
+.refresh-btn:disabled{opacity:.5;cursor:not-allowed}
+.refresh-btn:active{transform:scale(.97)}
+
+.offline-badge{display:inline-block;background:#e74c3c;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:6px}
+.online-badge{display:inline-block;background:#2ecc71;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:6px}
+
+.keypad{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
+.key{background:#1a1a2e;border:1px solid #333;border-radius:8px;padding:14px;text-align:center;font-size:18px;color:#e0e0e0;cursor:pointer;transition:.1s;-webkit-user-select:none;user-select:none}
+.key:active{background:#667eea;color:#fff;transform:scale(.95)}
+.key.op{color:#667eea;font-weight:600}
+.key.del{color:#e74c3c}
+
+@media(max-width:380px){
+  .input-row input{font-size:16px;padding:10px}
+  .result-display{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📐 單位換算器 <span style="font-size:12px;font-weight:400;opacity:.7">v1.0</span></h1>
+  <div class="rate-info" id="rateInfo">匯率載入中...</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="currency">💱 匯率</div>
+  <div class="tab" data-tab="length">📏 長度</div>
+  <div class="tab" data-tab="weight">⚖️ 重量</div>
+  <div class="tab" data-tab="temp">🌡️ 溫度</div>
+</div>
+
+<!-- 匯率 -->
+<div class="panel active" id="panel-currency">
+  <div class="converter">
+    <label>金額</label>
+    <div class="input-row">
+      <input type="number" id="currAmt" inputmode="decimal" value="1" placeholder="輸入金額">
+      <select id="currFrom"></select>
+    </div>
+    <button class="swap-btn" onclick="swapCurrency()">⇅</button>
+    <div class="input-row">
+      <select id="currTo"></select>
+    </div>
+    <div class="result-display" id="currResult">—</div>
+    <div class="formula" id="currFormula"></div>
+  </div>
+  <button class="refresh-btn" id="refreshBtn" onclick="fetchRates()">🔄 更新匯率</button>
+</div>
+
+<!-- 長度 -->
+<div class="panel" id="panel-length">
+  <div class="converter">
+    <label>數值</label>
+    <div class="input-row">
+      <input type="number" id="lenVal" inputmode="decimal" value="1" placeholder="輸入數值">
+      <select id="lenFrom"></select>
+    </div>
+    <button class="swap-btn" onclick="swapUnit('len')">⇅</button>
+    <div class="input-row">
+      <select id="lenTo"></select>
+    </div>
+    <div class="result-display" id="lenResult">—</div>
+    <div class="formula" id="lenFormula"></div>
+  </div>
+</div>
+
+<!-- 重量 -->
+<div class="panel" id="panel-weight">
+  <div class="converter">
+    <label>數值</label>
+    <div class="input-row">
+      <input type="number" id="wgtVal" inputmode="decimal" value="1" placeholder="輸入數值">
+      <select id="wgtFrom"></select>
+    </div>
+    <button class="swap-btn" onclick="swapUnit('wgt')">⇅</button>
+    <div class="input-row">
+      <select id="wgtTo"></select>
+    </div>
+    <div class="result-display" id="wgtResult">—</div>
+    <div class="formula" id="wgtFormula"></div>
+  </div>
+</div>
+
+<!-- 溫度 -->
+<div class="panel" id="panel-temp">
+  <div class="converter">
+    <label>數值</label>
+    <div class="input-row">
+      <input type="number" id="tmpVal" inputmode="decimal" value="100" placeholder="輸入數值">
+      <select id="tmpFrom">
+        <option value="C">°C 攝氏</option>
+        <option value="F">°F 華氏</option>
+        <option value="K">K 克氏</option>
+      </select>
+    </div>
+    <button class="swap-btn" onclick="swapUnit('tmp')">⇅</button>
+    <div class="input-row">
+      <select id="tmpTo">
+        <option value="F">°F 華氏</option>
+        <option value="C">°C 攝氏</option>
+        <option value="K">K 克氏</option>
+      </select>
+    </div>
+    <div class="result-display" id="tmpResult">—</div>
+    <div class="formula" id="tmpFormula"></div>
+  </div>
+</div>
+
+<script>
+// ===== 匯率 =====
+const CURRENCIES = [
+  {code:'TWD',name:'台幣',flag:'🇹🇼'},
+  {code:'USD',name:'美元',flag:'🇺🇸'},
+  {code:'EUR',name:'歐元',flag:'🇪🇺'},
+  {code:'JPY',name:'日圓',flag:'🇯🇵'},
+  {code:'GBP',name:'英鎊',flag:'🇬🇧'},
+  {code:'CNY',name:'人民幣',flag:'🇨🇳'},
+  {code:'KRW',name:'韓圜',flag:'🇰🇷'},
+  {code:'HKD',name:'港幣',flag:'🇭🇰'},
+  {code:'SGD',name:'新加坡幣',flag:'🇸🇬'},
+  {code:'AUD',name:'澳幣',flag:'🇦🇺'},
+  {code:'CAD',name:'加幣',flag:'🇨🇦'},
+  {code:'CHF',name:'瑞士法郎',flag:'🇨🇭'},
+  {code:'THB',name:'泰銖',flag:'🇹🇭'},
+  {code:'VND',name:'越南盾',flag:'🇻🇳'},
+];
+
+let rates = {};
+let rateDate = '';
+
+function initCurrencySelects(){
+  const from = document.getElementById('currFrom');
+  const to = document.getElementById('currTo');
+  CURRENCIES.forEach((c,i) => {
+    const opt1 = new Option(`${c.flag} ${c.code} ${c.name}`, c.code);
+    const opt2 = new Option(`${c.flag} ${c.code} ${c.name}`, c.code);
+    from.add(opt1);
+    to.add(opt2);
+  });
+  from.value = 'USD';
+  to.value = 'TWD';
+}
+
+async function fetchRates(){
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 更新中...';
+  try {
+    // 使用 frankfurter.app — 免費、無需 API key
+    const res = await fetch('https://api.frankfurter.app/latest?from=USD');
+    const data = await res.json();
+    rates = data.rates;
+    rates['USD'] = 1;
+    rateDate = data.date;
+    // 快取到 localStorage
+    localStorage.setItem('uc_rates', JSON.stringify(rates));
+    localStorage.setItem('uc_rateDate', rateDate);
+    localStorage.setItem('uc_rateTime', new Date().toISOString());
+    updateRateInfo(false);
+    convertCurrency();
+  } catch(e) {
+    console.error('匯率更新失敗:', e);
+    // 嘗試讀取快取
+    loadCachedRates();
+  }
+  btn.disabled = false;
+  btn.textContent = '🔄 更新匯率';
+}
+
+function loadCachedRates(){
+  const cached = localStorage.getItem('uc_rates');
+  const cachedDate = localStorage.getItem('uc_rateDate');
+  const cachedTime = localStorage.getItem('uc_rateTime');
+  if(cached){
+    rates = JSON.parse(cached);
+    rateDate = cachedDate || '';
+    updateRateInfo(true);
+    convertCurrency();
+  } else {
+    document.getElementById('rateInfo').innerHTML = '無法取得匯率 <span class="offline-badge">離線</span>';
+  }
+}
+
+function updateRateInfo(isOffline){
+  const el = document.getElementById('rateInfo');
+  const cachedTime = localStorage.getItem('uc_rateTime');
+  let timeStr = '';
+  if(cachedTime){
+    const d = new Date(cachedTime);
+    timeStr = ` (${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')} 更新)`;
+  }
+  if(isOffline){
+    el.innerHTML = `匯率日期: ${rateDate}${timeStr} <span class="offline-badge">離線快取</span>`;
+  } else {
+    el.innerHTML = `匯率日期: ${rateDate}${timeStr} <span class="online-badge">最新</span>`;
+  }
+}
+
+function convertCurrency(){
+  const amt = parseFloat(document.getElementById('currAmt').value) || 0;
+  const from = document.getElementById('currFrom').value;
+  const to = document.getElementById('currTo').value;
+  if(!rates[from] || !rates[to]){
+    document.getElementById('currResult').textContent = '—';
+    return;
+  }
+  const result = amt * (rates[to] / rates[from]);
+  document.getElementById('currResult').innerHTML = formatNum(result) + ` <span class="unit-label">${to}</span>`;
+  const rate1 = rates[to] / rates[from];
+  document.getElementById('currFormula').textContent = `1 ${from} = ${formatNum(rate1)} ${to}`;
+}
+
+function swapCurrency(){
+  const from = document.getElementById('currFrom');
+  const to = document.getElementById('currTo');
+  [from.value, to.value] = [to.value, from.value];
+  convertCurrency();
+}
+
+// ===== 長度 =====
+const LENGTH_UNITS = [
+  {code:'mm', name:'公釐(mm)', factor:0.001},
+  {code:'cm', name:'公分(cm)', factor:0.01},
+  {code:'m',  name:'公尺(m)',  factor:1},
+  {code:'km', name:'公里(km)', factor:1000},
+  {code:'in', name:'英吋(in)', factor:0.0254},
+  {code:'ft', name:'英呎(ft)', factor:0.3048},
+  {code:'yd', name:'碼(yd)',   factor:0.9144},
+  {code:'mi', name:'英里(mi)', factor:1609.344},
+  {code:'tw_chi', name:'台尺',  factor:0.3030},
+  {code:'tw_cun', name:'台寸',  factor:0.0303},
+  {code:'nm', name:'海浬(nmi)', factor:1852},
+];
+
+// ===== 重量 =====
+const WEIGHT_UNITS = [
+  {code:'mg', name:'毫克(mg)',  factor:0.001},
+  {code:'g',  name:'公克(g)',   factor:1},
+  {code:'kg', name:'公斤(kg)', factor:1000},
+  {code:'t',  name:'公噸(t)',  factor:1000000},
+  {code:'oz', name:'盎司(oz)', factor:28.3495},
+  {code:'lb', name:'磅(lb)',   factor:453.592},
+  {code:'tw_jin',  name:'台斤', factor:600},
+  {code:'tw_liang', name:'台兩', factor:37.5},
+  {code:'tw_qian',  name:'台錢', factor:3.75},
+];
+
+function initUnitSelects(prefix, units, defaultFrom, defaultTo){
+  const from = document.getElementById(prefix+'From');
+  const to = document.getElementById(prefix+'To');
+  units.forEach(u => {
+    from.add(new Option(u.name, u.code));
+    to.add(new Option(u.name, u.code));
+  });
+  from.value = defaultFrom;
+  to.value = defaultTo;
+}
+
+function convertUnit(prefix, units){
+  const val = parseFloat(document.getElementById(prefix+'Val').value) || 0;
+  const fromCode = document.getElementById(prefix+'From').value;
+  const toCode = document.getElementById(prefix+'To').value;
+  const fromUnit = units.find(u=>u.code===fromCode);
+  const toUnit = units.find(u=>u.code===toCode);
+  if(!fromUnit||!toUnit) return;
+  const result = val * fromUnit.factor / toUnit.factor;
+  document.getElementById(prefix+'Result').innerHTML = formatNum(result) + ` <span class="unit-label">${toUnit.name}</span>`;
+  const rate1 = fromUnit.factor / toUnit.factor;
+  document.getElementById(prefix+'Formula').textContent = `1 ${fromUnit.name} = ${formatNum(rate1)} ${toUnit.name}`;
+}
+
+function swapUnit(prefix){
+  const from = document.getElementById(prefix+'From');
+  const to = document.getElementById(prefix+'To');
+  [from.value, to.value] = [to.value, from.value];
+  if(prefix==='len') convertUnit('len', LENGTH_UNITS);
+  else if(prefix==='wgt') convertUnit('wgt', WEIGHT_UNITS);
+  else if(prefix==='tmp') convertTemp();
+}
+
+// ===== 溫度 =====
+function convertTemp(){
+  const val = parseFloat(document.getElementById('tmpVal').value) || 0;
+  const from = document.getElementById('tmpFrom').value;
+  const to = document.getElementById('tmpTo').value;
+  let result;
+  // 先轉成攝氏
+  let celsius;
+  if(from==='C') celsius = val;
+  else if(from==='F') celsius = (val - 32) * 5/9;
+  else celsius = val - 273.15; // K
+
+  if(to==='C') result = celsius;
+  else if(to==='F') result = celsius * 9/5 + 32;
+  else result = celsius + 273.15; // K
+
+  const unitNames = {C:'°C',F:'°F',K:'K'};
+  document.getElementById('tmpResult').innerHTML = formatNum(result) + ` <span class="unit-label">${unitNames[to]}</span>`;
+
+  const formulas = {
+    'C-F':'°C × 9/5 + 32 = °F',
+    'F-C':'(°F − 32) × 5/9 = °C',
+    'C-K':'°C + 273.15 = K',
+    'K-C':'K − 273.15 = °C',
+    'F-K':'(°F − 32) × 5/9 + 273.15 = K',
+    'K-F':'(K − 273.15) × 9/5 + 32 = °F',
+  };
+  document.getElementById('tmpFormula').textContent = formulas[from+'-'+to] || '';
+}
+
+// ===== 格式化數字 =====
+function formatNum(n){
+  if(n === 0) return '0';
+  const abs = Math.abs(n);
+  if(abs >= 1000) return n.toLocaleString('zh-TW', {maximumFractionDigits:2});
+  if(abs >= 1) return n.toLocaleString('zh-TW', {maximumFractionDigits:4});
+  if(abs >= 0.01) return n.toLocaleString('zh-TW', {maximumFractionDigits:6});
+  return n.toPrecision(6);
+}
+
+// ===== Tab 切換 =====
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-'+tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ===== 輸入事件 =====
+document.getElementById('currAmt').addEventListener('input', convertCurrency);
+document.getElementById('currFrom').addEventListener('change', convertCurrency);
+document.getElementById('currTo').addEventListener('change', convertCurrency);
+
+document.getElementById('lenVal').addEventListener('input', ()=>convertUnit('len',LENGTH_UNITS));
+document.getElementById('lenFrom').addEventListener('change', ()=>convertUnit('len',LENGTH_UNITS));
+document.getElementById('lenTo').addEventListener('change', ()=>convertUnit('len',LENGTH_UNITS));
+
+document.getElementById('wgtVal').addEventListener('input', ()=>convertUnit('wgt',WEIGHT_UNITS));
+document.getElementById('wgtFrom').addEventListener('change', ()=>convertUnit('wgt',WEIGHT_UNITS));
+document.getElementById('wgtTo').addEventListener('change', ()=>convertUnit('wgt',WEIGHT_UNITS));
+
+document.getElementById('tmpVal').addEventListener('input', convertTemp);
+document.getElementById('tmpFrom').addEventListener('change', convertTemp);
+document.getElementById('tmpTo').addEventListener('change', convertTemp);
+
+// ===== 初始化 =====
+initCurrencySelects();
+initUnitSelects('len', LENGTH_UNITS, 'cm', 'in');
+initUnitSelects('wgt', WEIGHT_UNITS, 'kg', 'lb');
+
+// 先載入快取，再嘗試線上更新
+loadCachedRates();
+fetchRates();
+
+convertUnit('len', LENGTH_UNITS);
+convertUnit('wgt', WEIGHT_UNITS);
+convertTemp();
+
+// 註冊 Service Worker
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>

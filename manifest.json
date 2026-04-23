@@ -1,0 +1,13 @@
+{
+  "name": "單位換算器",
+  "short_name": "換算器",
+  "description": "匯率、長度、重量、溫度即時換算",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f0f23",
+  "theme_color": "#667eea",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}
