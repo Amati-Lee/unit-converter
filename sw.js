@@ -1,4 +1,4 @@
-const CACHE_NAME = 'unit-converter-v1';
+const CACHE_NAME = 'unit-converter-v2';
 const ASSETS = ['/', 'index.html', 'manifest.json'];
 
 self.addEventListener('install', e => {
@@ -18,7 +18,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // API 請求：network first，失敗用快取
-  if (url.hostname.includes('frankfurter')) {
+  if (url.hostname.includes('er-api') || url.hostname.includes('frankfurter')) {
     e.respondWith(
       fetch(e.request).then(res => {
         const clone = res.clone();
