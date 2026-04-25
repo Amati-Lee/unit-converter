@@ -80,6 +80,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f0f2
   <div class="tab" data-tab="length">📏 長度</div>
   <div class="tab" data-tab="weight">⚖️ 重量</div>
   <div class="tab" data-tab="area">⬜ 面積</div>
+  <div class="tab" data-tab="volume">🧪 體積</div>
   <div class="tab" data-tab="temp">🌡️ 溫度</div>
 </div>
 
@@ -149,6 +150,23 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f0f2
     </div>
     <div class="result-display" id="areaResult">—</div>
     <div class="formula" id="areaFormula"></div>
+  </div>
+</div>
+
+<!-- 體積 -->
+<div class="panel" id="panel-volume">
+  <div class="converter">
+    <label>數值</label>
+    <div class="input-row">
+      <input type="number" id="volVal" inputmode="decimal" value="1" placeholder="輸入數值">
+      <select id="volFrom"></select>
+    </div>
+    <button class="swap-btn" onclick="swapUnit('vol')">⇅</button>
+    <div class="input-row">
+      <select id="volTo"></select>
+    </div>
+    <div class="result-display" id="volResult">—</div>
+    <div class="formula" id="volFormula"></div>
   </div>
 </div>
 
@@ -333,6 +351,22 @@ const AREA_UNITS = [
   {code:'fen', name:'分',           factor:969.917},
 ];
 
+// ===== 體積 =====
+const VOLUME_UNITS = [
+  {code:'ml',   name:'毫升(mL)',     factor:0.001},
+  {code:'cc',   name:'cc',           factor:0.001},
+  {code:'l',    name:'公升(L)',      factor:1},
+  {code:'m3',   name:'立方公尺(m³)', factor:1000},
+  {code:'cm3',  name:'立方公分(cm³)', factor:0.001},
+  {code:'tsp',  name:'茶匙(tsp)',    factor:0.00492892},
+  {code:'tbsp', name:'湯匙(tbsp)',   factor:0.0147868},
+  {code:'cup',  name:'杯(cup)',      factor:0.236588},
+  {code:'floz', name:'液盎司(fl oz)', factor:0.0295735},
+  {code:'pt',   name:'品脫(pint)',   factor:0.473176},
+  {code:'qt',   name:'夸脫(quart)',  factor:0.946353},
+  {code:'gal',  name:'加侖(gallon)', factor:3.78541},
+];
+
 function initUnitSelects(prefix, units, defaultFrom, defaultTo){
   const from = document.getElementById(prefix+'From');
   const to = document.getElementById(prefix+'To');
@@ -364,6 +398,7 @@ function swapUnit(prefix){
   if(prefix==='len') convertUnit('len', LENGTH_UNITS);
   else if(prefix==='wgt') convertUnit('wgt', WEIGHT_UNITS);
   else if(prefix==='area') convertUnit('area', AREA_UNITS);
+  else if(prefix==='vol') convertUnit('vol', VOLUME_UNITS);
   else if(prefix==='tmp') convertTemp();
 }
 
@@ -434,6 +469,10 @@ document.getElementById('areaVal').addEventListener('input', ()=>convertUnit('ar
 document.getElementById('areaFrom').addEventListener('change', ()=>convertUnit('area',AREA_UNITS));
 document.getElementById('areaTo').addEventListener('change', ()=>convertUnit('area',AREA_UNITS));
 
+document.getElementById('volVal').addEventListener('input', ()=>convertUnit('vol',VOLUME_UNITS));
+document.getElementById('volFrom').addEventListener('change', ()=>convertUnit('vol',VOLUME_UNITS));
+document.getElementById('volTo').addEventListener('change', ()=>convertUnit('vol',VOLUME_UNITS));
+
 document.getElementById('tmpVal').addEventListener('input', convertTemp);
 document.getElementById('tmpFrom').addEventListener('change', convertTemp);
 document.getElementById('tmpTo').addEventListener('change', convertTemp);
@@ -443,6 +482,7 @@ initCurrencySelects();
 initUnitSelects('len', LENGTH_UNITS, 'cm', 'in');
 initUnitSelects('wgt', WEIGHT_UNITS, 'kg', 'lb');
 initUnitSelects('area', AREA_UNITS, 'm2', 'ping');
+initUnitSelects('vol', VOLUME_UNITS, 'ml', 'l');
 
 // 先載入快取，再嘗試線上更新
 loadCachedRates();
@@ -451,6 +491,7 @@ fetchRates();
 convertUnit('len', LENGTH_UNITS);
 convertUnit('wgt', WEIGHT_UNITS);
 convertUnit('area', AREA_UNITS);
+convertUnit('vol', VOLUME_UNITS);
 convertTemp();
 
 // 註冊 Service Worker

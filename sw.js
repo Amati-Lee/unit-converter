@@ -1,4 +1,4 @@
-const CACHE_NAME = 'unit-converter-v4';
+const CACHE_NAME = 'unit-converter-v5';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
